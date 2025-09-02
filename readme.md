@@ -84,6 +84,145 @@ terraform/
    - Users module: Ability to assume the bootstrap role
    - Parameter Store module: Access to the target account
 
+## Installing Terraform
+
+### Windows
+
+#### Option 1: Using Chocolatey (Recommended)
+```powershell
+# Install Chocolatey if not already installed
+Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+# Install Terraform
+choco install terraform
+```
+
+#### Option 2: Using Scoop
+```powershell
+# Install Scoop if not already installed
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+irm get.scoop.sh | iex
+
+# Install Terraform
+scoop install terraform
+```
+
+#### Option 3: Manual Installation
+1. Download the latest Terraform binary from [terraform.io/downloads](https://terraform.io/downloads)
+2. Extract the zip file to a directory (e.g., `C:\terraform`)
+3. Add the directory to your system PATH:
+   - Open System Properties → Advanced → Environment Variables
+   - Add `C:\terraform` to the PATH variable
+
+### macOS
+
+#### Option 1: Using Homebrew (Recommended)
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Terraform
+brew install terraform
+```
+
+#### Option 2: Using MacPorts
+```bash
+# Install MacPorts if not already installed
+# Download from https://www.macports.org/install.php
+
+# Install Terraform
+sudo port install terraform
+```
+
+### Linux
+
+#### Ubuntu/Debian
+```bash
+# Add HashiCorp GPG key
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+# Add HashiCorp repository
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# Update package list and install Terraform
+sudo apt update && sudo apt install terraform
+```
+
+#### CentOS/RHEL/Fedora
+```bash
+# Add HashiCorp repository
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+
+# Install Terraform
+sudo yum install terraform
+```
+
+#### Arch Linux
+```bash
+# Install from official repositories
+sudo pacman -S terraform
+
+# Or install from AUR for latest version
+yay -S terraform-bin
+```
+
+### Verify Installation
+
+After installation, verify Terraform is working correctly:
+
+```bash
+# Check Terraform version
+terraform version
+
+# Should output something like:
+# Terraform v1.6.0
+# on windows_amd64
+```
+
+### AWS CLI Installation
+
+You'll also need the AWS CLI configured:
+
+#### Windows
+```powershell
+# Using Chocolatey
+choco install awscli
+
+# Or download MSI installer from https://aws.amazon.com/cli/
+```
+
+#### macOS
+```bash
+# Using Homebrew
+brew install awscli
+
+# Or using pip
+pip3 install awscli
+```
+
+#### Linux
+```bash
+# Using pip
+pip3 install awscli
+
+# Or using package manager
+sudo apt install awscli  # Ubuntu/Debian
+sudo yum install awscli  # CentOS/RHEL
+```
+
+#### Configure AWS CLI
+```bash
+# Configure with your AWS credentials
+aws configure
+
+# Enter your:
+# AWS Access Key ID: [Your access key]
+# AWS Secret Access Key: [Your secret key]
+# Default region name: [e.g., ap-southeast-2]
+# Default output format: [json]
+```
+
 ## Quick Start
 
 ### Option 1: Complete Setup (All Modules)
