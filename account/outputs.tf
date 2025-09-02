@@ -1,85 +1,41 @@
-output "new_account_id" {
+# Account Creation Module Outputs
+
+output "account_id" {
   description = "The ID of the newly created AWS account"
   value       = aws_organizations_account.new_account.id
 }
 
-output "new_account_arn" {
+output "account_arn" {
   description = "The ARN of the newly created AWS account"
   value       = aws_organizations_account.new_account.arn
 }
 
-output "new_account_name" {
+output "account_name" {
   description = "The name of the newly created AWS account"
   value       = aws_organizations_account.new_account.name
 }
 
-output "new_account_email" {
+output "account_email" {
   description = "The email address of the newly created AWS account"
   value       = aws_organizations_account.new_account.email
 }
 
-output "new_account_status" {
+output "account_status" {
   description = "The status of the newly created AWS account"
   value       = aws_organizations_account.new_account.status
 }
 
-# VPC Outputs
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
+output "account_joined_method" {
+  description = "The method by which the account was joined to the organization"
+  value       = aws_organizations_account.new_account.joined_method
 }
 
-output "vpc_cidr_block" {
-  description = "CIDR block of the VPC"
-  value       = aws_vpc.main.cidr_block
+output "account_joined_timestamp" {
+  description = "The timestamp when the account was joined to the organization"
+  value       = aws_organizations_account.new_account.joined_timestamp
 }
 
-output "internet_gateway_id" {
-  description = "ID of the Internet Gateway"
-  value       = aws_internet_gateway.main.id
-}
-
-output "public_subnet_ids" {
-  description = "IDs of the public subnets"
-  value       = aws_subnet.public[*].id
-}
-
-output "private_subnet_ids" {
-  description = "IDs of the private subnets"
-  value       = aws_subnet.private[*].id
-}
-
-output "public_subnet_cidrs" {
-  description = "CIDR blocks of the public subnets"
-  value       = aws_subnet.public[*].cidr_block
-}
-
-output "private_subnet_cidrs" {
-  description = "CIDR blocks of the private subnets"
-  value       = aws_subnet.private[*].cidr_block
-}
-
-output "nat_gateway_ids" {
-  description = "IDs of the NAT Gateways"
-  value       = var.enable_nat_gateway ? aws_nat_gateway.main[*].id : []
-}
-
-output "nat_gateway_public_ips" {
-  description = "Public IPs of the NAT Gateways"
-  value       = var.enable_nat_gateway ? aws_eip.nat[*].public_ip : []
-}
-
-output "vpn_gateway_id" {
-  description = "ID of the VPN Gateway"
-  value       = var.enable_vpn_gateway ? aws_vpn_gateway.main[0].id : null
-}
-
-output "public_route_table_id" {
-  description = "ID of the public route table"
-  value       = aws_route_table.public.id
-}
-
-output "private_route_table_ids" {
-  description = "IDs of the private route tables"
-  value       = aws_route_table.private[*].id
+output "bootstrap_role_arn" {
+  description = "The ARN of the bootstrap role that can be assumed to access the account"
+  value       = "arn:aws:iam::${aws_organizations_account.new_account.id}:role/OrganizationAccountAccessRole"
 }
