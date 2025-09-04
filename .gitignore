@@ -9,6 +9,8 @@
 .terraform.lock.hcl
 crash.log
 crash.*.log
+*.setup
+
 
 # Environment files
 .env
