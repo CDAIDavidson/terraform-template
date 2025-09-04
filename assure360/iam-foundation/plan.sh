@@ -16,11 +16,17 @@ fi
 
 # Set AWS profile
 echo "🔑 Setting AWS profile..."
-if [ -n "$TF_VAR_aws_profile" ]; then
+if [ -n "$AWS_PROFILE" ]; then
+    echo "✅ AWS profile set to: $AWS_PROFILE"
+elif [ -n "$TF_VAR_aws_profile" ]; then
     export AWS_PROFILE=$TF_VAR_aws_profile
     echo "✅ AWS profile set to: $AWS_PROFILE"
 else
-    echo "⚠️  No AWS profile specified, using default"
+    echo "❌ No AWS profile specified!"
+    echo "   Please set AWS_PROFILE before running this script:"
+    echo "   export AWS_PROFILE=AdminAssure360"
+    echo "   or add TF_VAR_aws_profile=\"AdminAssure360\" to your .env file"
+    exit 1
 fi
 
 # Verify environment variables are loaded

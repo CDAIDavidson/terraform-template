@@ -37,8 +37,10 @@ Creates the foundational IAM infrastructure:
 - Your local AWS credentials target the target account (e.g., `AWS_PROFILE=<profile>`)
 - Appropriate permissions to create IAM groups, policies, and roles
 
-## Quick Commands
-AWS_PROFILE=AdminAssure360
+## target the target account 
+```bash
+export AWS_PROFILE=<>
+```
 
 ### Initialize First (Required)
 ```bash
