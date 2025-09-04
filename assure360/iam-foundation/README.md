@@ -34,7 +34,8 @@ Creates the foundational IAM infrastructure:
 
 ## Prereqs
 
-- Your local AWS credentials target the target account (e.g., `AWS_PROFILE=<profile>`)
+- Your local AWS credentials target the target account (e.g., 
+`export AWS_PROFILE=dev-assure360`)
 - Appropriate permissions to create IAM groups, policies, and roles
 
 ## target the target account 
