@@ -1,0 +1,163 @@
+name: Deploy Test App
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'assure360/test-app/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'assure360/test-app/**'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REPOSITORY: assure360-test-app
+  LAMBDA_FUNCTION: assure360-test-app
+
+jobs:
+  test:
+    name: Test Application
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        cd assure360/test-app/app
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        cd assure360/test-app/app
+        python -c "import app; print('App imports successfully')"
+        python -c "import lambda_handler; print('Lambda handler imports successfully')"
+
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ github.ref == 'refs/heads/main' && secrets.AWS_ROLE_ARN_PROD || secrets.AWS_ROLE_ARN_DEV }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        cd assure360/test-app/app
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Deploy infrastructure
+      run: |
+        cd assure360/test-app/infrastructure
+        terraform init
+        terraform plan -out=tfplan
+        terraform apply -auto-approve tfplan
+
+    - name: Update Lambda function
+      run: |
+        aws lambda update-function-code \
+          --function-name $LAMBDA_FUNCTION \
+          --image-uri ${{ steps.build-image.outputs.image }}
+
+    - name: Wait for Lambda update
+      run: |
+        aws lambda wait function-updated \
+          --function-name $LAMBDA_FUNCTION
+
+    - name: Test deployment
+      run: |
+        API_URL=$(cd assure360/test-app/infrastructure && terraform output -raw api_url)
+        echo "Testing API at: $API_URL"
+        
+        # Test health endpoint
+        curl -f "$API_URL/health" || exit 1
+        echo "✅ Health check passed"
+        
+        # Test hello endpoint
+        curl -f "$API_URL/hello" || exit 1
+        echo "✅ Hello endpoint passed"
+        
+        # Test test endpoint
+        curl -f "$API_URL/test" || exit 1
+        echo "✅ Test endpoint passed"
+        
+        echo "🎉 All tests passed!"
+
+    - name: Output deployment info
+      run: |
+        cd assure360/test-app/infrastructure
+        echo "🚀 Deployment successful!"
+        echo "API URL: $(terraform output -raw api_url)"
+        echo "Test endpoints:"
+        echo "  Health: $(terraform output -raw api_url)/health"
+        echo "  Hello:  $(terraform output -raw api_url)/hello"
+        echo "  Test:   $(terraform output -raw api_url)/test"
+        echo "  Docs:   $(terraform output -raw api_url)/docs"
+
+  destroy:
+    name: Destroy Resources
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Destroy infrastructure
+      run: |
+        cd assure360/test-app/infrastructure
+        terraform init
+        terraform destroy -auto-approve
+
+    - name: Clean up ECR images
+      run: |
+        aws ecr batch-delete-image \
+          --repository-name $ECR_REPOSITORY \
+          --image-ids imageTag=latest imageTag=${{ github.sha }} || true
+
+    - name: Output cleanup info
+      run: |
+        echo "🧹 Cleanup complete!"
+        echo "All test app resources have been destroyed."
