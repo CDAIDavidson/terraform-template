@@ -129,6 +129,47 @@ output "group_permissions" {
   }
 }
 
+# GitHub OIDC and CI/CD Outputs
+output "github_oidc_provider_arn" {
+  description = "The ARN of the GitHub OIDC provider"
+  value       = var.enable_github_oidc ? aws_iam_openid_connect_provider.github[0].arn : null
+}
+
+output "github_actions_dev_role_arn" {
+  description = "The ARN of the GitHub Actions development role"
+  value       = var.enable_github_oidc ? aws_iam_role.github_actions_dev[0].arn : null
+}
+
+output "github_actions_prod_role_arn" {
+  description = "The ARN of the GitHub Actions production role"
+  value       = var.enable_github_oidc ? aws_iam_role.github_actions_prod[0].arn : null
+}
+
+output "github_actions_dev_role_name" {
+  description = "The name of the GitHub Actions development role"
+  value       = var.enable_github_oidc ? aws_iam_role.github_actions_dev[0].name : null
+}
+
+output "github_actions_prod_role_name" {
+  description = "The name of the GitHub Actions production role"
+  value       = var.enable_github_oidc ? aws_iam_role.github_actions_prod[0].name : null
+}
+
+output "github_actions_configuration" {
+  description = "GitHub Actions configuration for CI/CD setup"
+  value = var.enable_github_oidc ? {
+    oidc_provider_arn = aws_iam_openid_connect_provider.github[0].arn
+    dev_role_arn      = aws_iam_role.github_actions_dev[0].arn
+    prod_role_arn     = aws_iam_role.github_actions_prod[0].arn
+    dev_role_name     = aws_iam_role.github_actions_dev[0].name
+    prod_role_name    = aws_iam_role.github_actions_prod[0].name
+    github_org        = var.github_organization
+    repositories      = var.github_repositories
+    aws_region        = var.region
+    aws_account_id    = data.aws_caller_identity.current.account_id
+  } : null
+}
+
 # Next steps
 output "next_steps" {
   description = "Instructions for next steps"
@@ -138,5 +179,6 @@ output "next_steps" {
     verify_policies = "aws iam list-policies --query 'Policies[?contains(PolicyName, `Davidson`)]'"
     verify_role = "aws iam get-role --role-name davidson-dev-elevated-role"
     elevated_role_assume = "aws sts assume-role --role-arn ${aws_iam_role.dev_elevated.arn} --role-session-name dev-session"
+    github_oidc_setup = var.enable_github_oidc ? "GitHub OIDC provider and CI/CD roles created. Configure GitHub Actions workflows using the provided role ARNs." : "Enable GitHub OIDC by setting enable_github_oidc = true and providing github_organization and github_repositories variables."
   }
 }

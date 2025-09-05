@@ -1,0 +1,70 @@
+name: Security Scan
+
+on:
+  pull_request:
+    paths:
+      - 'assure360/**'
+      - '.github/workflows/**'
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+    paths:
+      - 'assure360/**'
+
+env:
+  TF_VERSION: '1.6.0'
+
+jobs:
+  security-scan:
+    name: 'Security Scan'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Run Checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: assure360/
+        framework: terraform
+        output_format: sarif
+        output_file_path: checkov-results.sarif
+        
+    - name: Upload Checkov results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: checkov-results.sarif
+        
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trivy-results.sarif
+        
+    - name: Run TFSec
+      uses: aquasecurity/tfsec-action@v1.0.3
+      with:
+        working_directory: assure360/
+        format: sarif
+        soft_fail: true
+        
+    - name: Upload TFSec results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: tfsec-results.sarif

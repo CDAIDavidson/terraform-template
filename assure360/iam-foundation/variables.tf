@@ -23,3 +23,22 @@ variable "user_prefix" {
   type        = string
   default     = "davidson-"
 }
+
+# GitHub OIDC Configuration
+variable "github_organization" {
+  description = "GitHub organization name for OIDC trust"
+  type        = string
+  default     = ""
+}
+
+variable "github_repositories" {
+  description = "List of GitHub repositories that can assume the CI/CD roles"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_github_oidc" {
+  description = "Enable GitHub OIDC provider and CI/CD roles"
+  type        = bool
+  default     = false
+}

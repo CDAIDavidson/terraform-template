@@ -1,0 +1,36 @@
+# IAM Foundation Configuration Example
+# Copy this file to terraform.tfvars and update the values
+
+# AWS Region
+region = "ap-southeast-2"
+
+# Common tags for all resources
+common_tags = {
+  Project     = "Assure360"
+  ManagedBy   = "Terraform"
+  Environment = "production"
+  Owner       = "Platform Team"
+  CostCenter  = "ENG"
+  Team        = "Platform"
+}
+
+# User prefix for IAM usernames
+user_prefix = "davidson-"
+
+# GitHub OIDC Configuration
+enable_github_oidc = true
+github_organization = "your-github-org"
+github_repositories = [
+  "terraform-templates",
+  "assure360-app",
+  "assure360-frontend"
+]
+
+# Example for multiple repositories:
+# github_repositories = [
+#   "terraform-templates",
+#   "assure360-app", 
+#   "assure360-frontend",
+#   "assure360-api",
+#   "assure360-mobile"
+# ]
