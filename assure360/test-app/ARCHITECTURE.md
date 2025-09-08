@@ -98,7 +98,7 @@ flowchart TD
 - Terraform (ECS/ALB stack)
   - `assure360/networking/*` provisions VPC, ALB, ECS Cluster/Service/Task, ECR
 
-## How deploy works (digest-based)
+## How deploy works (digest-based).
 
 1. Build container and push to ECR with tag = commit SHA
 2. Resolve that tag's imageDigest
