@@ -57,15 +57,24 @@ check_prerequisites() {
     print_success "All prerequisites are installed"
 }
 
+# Ensure ECR repository exists (so we can push image before full apply)
+ensure_ecr_repository() {
+    print_status "Ensuring ECR repository exists..."
+    (
+        cd infrastructure
+        print_status "Initializing Terraform..."
+        terraform init
+        print_status "Creating ECR repository (targeted apply)..."
+        terraform apply -auto-approve -target=aws_ecr_repository.test_app
+        print_success "ECR repository ensured."
+    )
+}
+
 # Deploy infrastructure
 deploy_infrastructure() {
     print_status "Deploying infrastructure..."
     
     cd infrastructure
-    
-    # Initialize Terraform
-    print_status "Initializing Terraform..."
-    terraform init
     
     # Plan deployment
     print_status "Planning deployment..."
@@ -94,14 +103,16 @@ build_and_push_image() {
     
     # Get ECR repository URL
     ECR_REPOSITORY_URL=$(cd ../infrastructure && terraform output -raw ecr_repository_url)
+    REGISTRY="${ECR_REPOSITORY_URL%%/*}"
+    AWS_REGION_ENV="${AWS_REGION:-ap-southeast-2}"
     
     # Login to ECR
     print_status "Logging in to ECR..."
-    aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin $ECR_REPOSITORY_URL
+    aws ecr get-login-password --region "$AWS_REGION_ENV" | docker login --username AWS --password-stdin "$REGISTRY"
     
     # Build image
     print_status "Building Docker image..."
-    docker build -t assure360-test-app .
+    DOCKER_BUILDKIT=0 docker build --platform linux/amd64 -t assure360-test-app .
     docker tag assure360-test-app:latest $ECR_REPOSITORY_URL:latest
     
     # Push image
@@ -176,11 +187,14 @@ main() {
     # Check prerequisites
     check_prerequisites
     
-    # Deploy infrastructure
-    deploy_infrastructure
+    # Ensure ECR exists so image push can succeed on first deploy
+    ensure_ecr_repository
     
     # Build and push image
     build_and_push_image
+    
+    # Deploy full infrastructure (creates/updates Lambda, API GW, etc.)
+    deploy_infrastructure
     
     # Update Lambda function
     update_lambda

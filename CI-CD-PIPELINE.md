@@ -37,7 +37,7 @@ develop → Merge to main → Auto Deploy to Production
 ## 📋 **Workflows**
 
 ### **1. Terraform Plan** (`.github/workflows/terraform-plan.yml`)
-- **Triggers**: Pull requests to `main` or `develop`
+- **Triggers**: Manual only (`workflow_dispatch`)
 - **Actions**:
   - Runs `terraform plan` for all modules
   - Uploads plan artifacts
@@ -45,21 +45,21 @@ develop → Merge to main → Auto Deploy to Production
   - Security scanning (Checkov, Trivy, TFSec)
 
 ### **2. Development Deploy** (`.github/workflows/terraform-apply-dev.yml`)
-- **Triggers**: Push to `develop` branch
+- **Triggers**: Manual only (`workflow_dispatch`)
 - **Actions**:
   - Automatically deploys to development environment
   - Uploads deployment outputs
   - No approval required
 
 ### **3. Production Deploy** (`.github/workflows/terraform-apply-prod.yml`)
-- **Triggers**: Push to `main` branch
+- **Triggers**: Manual only (`workflow_dispatch`)
 - **Actions**:
   - Automatically deploys to production environment
   - Uploads deployment outputs
   - No approval required
 
 ### **4. Security Scan** (`.github/workflows/security-scan.yml`)
-- **Triggers**: Pull requests and pushes
+- **Triggers**: Manual only (`workflow_dispatch`)
 - **Actions**:
   - Runs Checkov (Terraform security)
   - Runs Trivy (vulnerability scanning)
@@ -137,11 +137,16 @@ cp -r .github/workflows/ /path/to/your/new/repo/.github/
 
 ### **Step 5: Test the Pipeline**
 
-1. **Create a feature branch** with some changes
-2. **Open a pull request** to `develop`
-3. **Verify the plan workflow runs** and shows the Terraform plan
-4. **Merge to develop** to test auto-deployment
-5. **Merge to main** to test production deployment (with approval)
+Since most workflows are manual-only now:
+
+1. Open the GitHub repository → Actions tab
+2. Run desired workflow via "Run workflow" (choose branch if applicable):
+   - Terraform Plan
+   - Terraform Apply - Development
+   - Terraform Apply - Production
+   - Security Scan
+   - Terraform Destroy
+3. For the Test App, continue normal behavior in `deploy-test-app.yml` (push/PR per its triggers)
 
 ## 📁 **Repository Structure**
 

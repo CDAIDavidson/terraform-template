@@ -1,13 +1,3 @@
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
 # Provider configuration
 provider "aws" {
   region = var.aws_region
@@ -113,7 +103,6 @@ resource "aws_lambda_function" "test_app" {
   environment {
     variables = {
       ENVIRONMENT = "production"
-      AWS_REGION  = var.aws_region
     }
   }
 
@@ -146,25 +135,75 @@ resource "aws_api_gateway_rest_api" "test_app" {
   })
 }
 
-# API Gateway Lambda integration
-resource "aws_api_gateway_lambda_integration" "test_app" {
-  rest_api_id = aws_api_gateway_rest_api.test_app.id
-  resource_id = aws_api_gateway_rest_api.test_app.root_resource_id
-  http_method = "ANY"
+# API Gateway method on root (ANY)
+resource "aws_api_gateway_method" "root_any" {
+  rest_api_id   = aws_api_gateway_rest_api.test_app.id
+  resource_id   = aws_api_gateway_rest_api.test_app.root_resource_id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+# API Gateway Lambda proxy integration on root (ANY)
+resource "aws_api_gateway_integration" "root_proxy" {
+  rest_api_id             = aws_api_gateway_rest_api.test_app.id
+  resource_id             = aws_api_gateway_rest_api.test_app.root_resource_id
+  http_method             = aws_api_gateway_method.root_any.http_method
   integration_http_method = "POST"
-  type                   = "AWS_PROXY"
-  uri                    = aws_lambda_function.test_app.invoke_arn
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${aws_lambda_function.test_app.arn}/invocations"
+}
+
+# Greedy proxy resource to route all subpaths to Lambda (e.g., /health, /hello)
+resource "aws_api_gateway_resource" "proxy" {
+  rest_api_id = aws_api_gateway_rest_api.test_app.id
+  parent_id   = aws_api_gateway_rest_api.test_app.root_resource_id
+  path_part   = "{proxy+}"
+}
+
+# ANY method on the greedy proxy resource
+resource "aws_api_gateway_method" "proxy_any" {
+  rest_api_id   = aws_api_gateway_rest_api.test_app.id
+  resource_id   = aws_api_gateway_resource.proxy.id
+  http_method   = "ANY"
+  authorization = "NONE"
+}
+
+# Lambda proxy integration for the greedy proxy
+resource "aws_api_gateway_integration" "proxy_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.test_app.id
+  resource_id             = aws_api_gateway_resource.proxy.id
+  http_method             = aws_api_gateway_method.proxy_any.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${aws_lambda_function.test_app.arn}/invocations"
 }
 
 # API Gateway deployment
 resource "aws_api_gateway_deployment" "test_app" {
-  depends_on = [aws_api_gateway_lambda_integration.test_app]
+  depends_on = [aws_api_gateway_integration.root_proxy, aws_api_gateway_integration.proxy_integration]
   rest_api_id = aws_api_gateway_rest_api.test_app.id
-  stage_name  = "prod"
+
+  # Force redeploy when routes/integrations change
+  triggers = {
+    redeploy_hash = sha1(jsonencode({
+      root_integration  = aws_api_gateway_integration.root_proxy.id
+      proxy_integration = aws_api_gateway_integration.proxy_integration.id
+      methods = {
+        root  = aws_api_gateway_method.root_any.id
+        proxy = aws_api_gateway_method.proxy_any.id
+      }
+    }))
+  }
 
   lifecycle {
     create_before_destroy = true
   }
+}
+
+resource "aws_api_gateway_stage" "prod" {
+  rest_api_id   = aws_api_gateway_rest_api.test_app.id
+  deployment_id = aws_api_gateway_deployment.test_app.id
+  stage_name    = "prod"
 }
 
 # Lambda permission for API Gateway

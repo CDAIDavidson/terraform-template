@@ -1,6 +1,6 @@
 output "api_url" {
   description = "The URL of the API Gateway"
-  value       = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}"
+  value       = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}"
 }
 
 output "lambda_function_name" {
@@ -26,7 +26,7 @@ output "cloudwatch_log_group" {
 output "deployment_info" {
   description = "Deployment information for testing"
   value = {
-    api_url                = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}"
+    api_url                = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}"
     lambda_function_name   = aws_lambda_function.test_app.function_name
     ecr_repository_url     = aws_ecr_repository.test_app.repository_url
     region                 = var.aws_region
@@ -37,9 +37,9 @@ output "deployment_info" {
 output "test_endpoints" {
   description = "Test endpoints for validation"
   value = {
-    health = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}/health"
-    hello  = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}/hello"
-    test   = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}/test"
-    docs   = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_deployment.test_app.stage_name}/docs"
+    health = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}/health"
+    hello  = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}/hello"
+    test   = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}/test"
+    docs   = "https://${aws_api_gateway_rest_api.test_app.id}.execute-api.${var.aws_region}.amazonaws.com/${aws_api_gateway_stage.prod.stage_name}/docs"
   }
 }

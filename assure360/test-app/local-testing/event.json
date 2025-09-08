@@ -1,0 +1,25 @@
+{
+  "pull_request": {
+    "head": {
+      "ref": "feature/test-branch",
+      "sha": "abc123def456"
+    },
+    "base": {
+      "ref": "main",
+      "sha": "def456ghi789"
+    },
+    "number": 123,
+    "title": "Test pull request for CI/CD validation",
+    "body": "Testing the GitHub Actions pipeline locally with act"
+  },
+  "repository": {
+    "name": "terraform-templates",
+    "full_name": "chris/terraform-templates",
+    "owner": {
+      "login": "chris"
+    }
+  },
+  "sender": {
+    "login": "chris"
+  }
+}
