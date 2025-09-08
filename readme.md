@@ -36,9 +36,10 @@ The solution uses a modular approach with separate components that can be used i
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Directory Structure
+## Directory Structure.
 
 ```
+
 terraform/
 ├── account/                      # Account Management Module
 │   ├── main.tf                   # Creates AWS account in organization
