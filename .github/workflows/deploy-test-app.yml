@@ -97,6 +97,7 @@ jobs:
         IMAGE_DIGEST=$(aws ecr describe-images \
           --repository-name $ECR_REPOSITORY \
           --image-ids imageTag=$IMAGE_TAG \
+          --region $AWS_REGION \
           --query 'imageDetails[0].imageDigest' --output text)
         echo "digest=$IMAGE_DIGEST" >> $GITHUB_OUTPUT
 
@@ -116,10 +117,12 @@ jobs:
 
         # Get current task definition ARN
         TD_ARN=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME" \
+          --region $AWS_REGION \
           --query 'services[0].taskDefinition' --output text)
 
         # Get current task definition JSON
         aws ecs describe-task-definition --task-definition "$TD_ARN" \
+          --region $AWS_REGION \
           --query 'taskDefinition' > td.json
 
         # Strip fields not allowed on register
@@ -131,10 +134,12 @@ jobs:
 
         # Register new task definition
         NEW_TD_ARN=$(aws ecs register-task-definition --cli-input-json file://td-updated.json \
+          --region $AWS_REGION \
           --query 'taskDefinition.taskDefinitionArn' --output text)
 
         # Update service to use new task definition and force new deployment
         aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
+          --region $AWS_REGION \
           --task-definition "$NEW_TD_ARN" --force-new-deployment
 
         echo "new_task_definition=$NEW_TD_ARN" >> $GITHUB_OUTPUT
@@ -143,6 +148,7 @@ jobs:
       run: |
         ALB_NAME="$APP_NAME-alb"
         ALB_DNS=$(aws elbv2 describe-load-balancers --names "$ALB_NAME" \
+          --region $AWS_REGION \
           --query 'LoadBalancers[0].DNSName' --output text)
         echo "Testing API at: http://$ALB_DNS"
 
@@ -162,6 +168,7 @@ jobs:
       run: |
         ALB_NAME="$APP_NAME-alb"
         ALB_DNS=$(aws elbv2 describe-load-balancers --names "$ALB_NAME" \
+          --region $AWS_REGION \
           --query 'LoadBalancers[0].DNSName' --output text)
         echo "🚀 Deployment successful!"
         echo "ALB URL: http://$ALB_DNS"
