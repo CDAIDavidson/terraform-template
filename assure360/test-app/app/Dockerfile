@@ -1,13 +1,29 @@
-# Use Python 3.11 slim image
-FROM public.ecr.aws/lambda/python:3.11
+FROM python:3.11-slim
 
-# Copy requirements and install dependencies
-COPY requirements.txt ${LAMBDA_TASK_ROOT}/
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    APP_PORT=8080
 
-# Copy application code
-COPY app.py ${LAMBDA_TASK_ROOT}/
-COPY lambda_handler.py ${LAMBDA_TASK_ROOT}/
+WORKDIR /app
 
-# Set the CMD to your handler
-CMD ["lambda_handler.handler"]
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+COPY app.py ./
+
+# Create non-root user
+RUN useradd -u 10001 -r -s /usr/sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://127.0.0.1:${APP_PORT}/health || exit 1
+
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
