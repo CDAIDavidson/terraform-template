@@ -13,8 +13,8 @@ on:
 
 env:
   AWS_REGION: ap-southeast-2
-  ECR_REPOSITORY: assure360-test-app
-  LAMBDA_FUNCTION: assure360-test-app
+  ECR_REPOSITORY: assure360-app
+  APP_NAME: assure360-app
 
 jobs:
   test:
@@ -92,72 +92,83 @@ jobs:
       run: |
         cd assure360/test-app/app
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+        IMAGE_DIGEST=$(aws ecr describe-images \
+          --repository-name $ECR_REPOSITORY \
+          --image-ids imageTag=$IMAGE_TAG \
+          --query 'imageDetails[0].imageDigest' --output text)
+        echo "digest=$IMAGE_DIGEST" >> $GITHUB_OUTPUT
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: '1.6.0'
-
-    - name: Ensure Terraform is executable (act only)
-      if: ${{ env.ACT }}
+    - name: Install jq
       run: |
-        if [ -n "$TERRAFORM_CLI_PATH" ]; then
-          chmod +x "$TERRAFORM_CLI_PATH/terraform" || true
-          ln -sf "$TERRAFORM_CLI_PATH/terraform" /usr/local/bin/terraform || true
-          terraform version || true
-        fi
+        sudo apt-get update
+        sudo apt-get install -y jq
 
-    - name: Deploy infrastructure
+    - name: Update ECS service to new image digest
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_DIGEST: ${{ steps.build-image.outputs.digest }}
       run: |
-        cd assure360/test-app/infrastructure
-        terraform init
-        terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan
+        CLUSTER_NAME="$APP_NAME-cluster"
+        SERVICE_NAME="$APP_NAME-svc"
 
-    - name: Update Lambda function
-      run: |
-        aws lambda update-function-code \
-          --function-name $LAMBDA_FUNCTION \
-          --image-uri ${{ steps.build-image.outputs.image }}
+        # Get current task definition ARN
+        TD_ARN=$(aws ecs describe-services --cluster "$CLUSTER_NAME" --services "$SERVICE_NAME" \
+          --query 'services[0].taskDefinition' --output text)
 
-    - name: Wait for Lambda update
-      run: |
-        aws lambda wait function-updated \
-          --function-name $LAMBDA_FUNCTION
+        # Get current task definition JSON
+        aws ecs describe-task-definition --task-definition "$TD_ARN" \
+          --query 'taskDefinition' > td.json
 
-    - name: Test deployment
+        # Strip fields not allowed on register
+        cat td.json | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > td-stripped.json
+
+        # Update image to digest for first container
+        NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST"
+        cat td-stripped.json | jq '.containerDefinitions[0].image = env.NEW_IMAGE' > td-updated.json
+
+        # Register new task definition
+        NEW_TD_ARN=$(aws ecs register-task-definition --cli-input-json file://td-updated.json \
+          --query 'taskDefinition.taskDefinitionArn' --output text)
+
+        # Update service to use new task definition and force new deployment
+        aws ecs update-service --cluster "$CLUSTER_NAME" --service "$SERVICE_NAME" \
+          --task-definition "$NEW_TD_ARN" --force-new-deployment
+
+        echo "new_task_definition=$NEW_TD_ARN" >> $GITHUB_OUTPUT
+
+    - name: Test deployment (via ALB)
       run: |
-        API_URL=$(cd assure360/test-app/infrastructure && terraform output -raw api_url)
-        echo "Testing API at: $API_URL"
-        
-        # Test health endpoint
-        curl -f "$API_URL/health" || exit 1
-        echo "✅ Health check passed"
-        
-        # Test hello endpoint
-        curl -f "$API_URL/hello" || exit 1
-        echo "✅ Hello endpoint passed"
-        
-        # Test test endpoint
-        curl -f "$API_URL/test" || exit 1
-        echo "✅ Test endpoint passed"
-        
+        ALB_NAME="$APP_NAME-alb"
+        ALB_DNS=$(aws elbv2 describe-load-balancers --names "$ALB_NAME" \
+          --query 'LoadBalancers[0].DNSName' --output text)
+        echo "Testing API at: http://$ALB_DNS"
+
+        # Retry loop until healthy
+        for i in $(seq 1 20); do
+          if curl -fsS "http://$ALB_DNS/health" >/dev/null; then
+            echo "✅ Health check passed"; break
+          fi
+          echo "Waiting for service to become healthy... ($i)"
+          sleep 10
+        done
+        curl -f "http://$ALB_DNS/hello" || exit 1
+        curl -f "http://$ALB_DNS/test" || exit 1
         echo "🎉 All tests passed!"
 
     - name: Output deployment info
       run: |
-        cd assure360/test-app/infrastructure
+        ALB_NAME="$APP_NAME-alb"
+        ALB_DNS=$(aws elbv2 describe-load-balancers --names "$ALB_NAME" \
+          --query 'LoadBalancers[0].DNSName' --output text)
         echo "🚀 Deployment successful!"
-        echo "API URL: $(terraform output -raw api_url)"
+        echo "ALB URL: http://$ALB_DNS"
         echo "Test endpoints:"
-        echo "  Health: $(terraform output -raw api_url)/health"
-        echo "  Hello:  $(terraform output -raw api_url)/hello"
-        echo "  Test:   $(terraform output -raw api_url)/test"
-        echo "  Docs:   $(terraform output -raw api_url)/docs"
+        echo "  Health: http://$ALB_DNS/health"
+        echo "  Hello:  http://$ALB_DNS/hello"
+        echo "  Test:   http://$ALB_DNS/test"
 
   destroy:
     name: Destroy Resources
