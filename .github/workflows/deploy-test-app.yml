@@ -128,9 +128,9 @@ jobs:
         # Strip fields not allowed on register
         cat td.json | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' > td-stripped.json
 
-        # Update image to digest for first container
+        # Update image to digest for container named "app"
         NEW_IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY@$IMAGE_DIGEST"
-        cat td-stripped.json | jq '.containerDefinitions[0].image = env.NEW_IMAGE' > td-updated.json
+        jq --arg new_image "$NEW_IMAGE" '(.containerDefinitions[] | select(.name == "app") | .image) = $new_image' td-stripped.json > td-updated.json
 
         # Register new task definition
         NEW_TD_ARN=$(aws ecs register-task-definition --cli-input-json file://td-updated.json \
