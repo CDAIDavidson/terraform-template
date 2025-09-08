@@ -75,3 +75,5 @@ terraform.rc
 .secrets
 .secrets
 assure360/test-app/local-testing/.secrets
+.secrets
+assure360/test-app/local-testing/.secrets
